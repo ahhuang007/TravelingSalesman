@@ -17,7 +17,7 @@ function get_dist(df)
 end
 
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
-	iters = 100
+	iters = 100000
 	mutate_prob = 0.2
 	for i in 1:iters
 		temp_genomes = []
@@ -48,8 +48,8 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
 
 				secta = p[2][isnothing.(indexin(p[2].ID, c1_id)), :]
 				sectb = p[1][isnothing.(indexin(p[1].ID, c2_id)), :]
-				vcat!(child1, secta)
-				vcat!(child2, sectb)
+				child1 = vcat(child1, secta)
+				child2 = vcat(child2, sectb)
 				push!(temp_genomes, child1)
 				push!(temp_genomes, child2)
 			else
@@ -59,44 +59,26 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
 		end
 
 		#Mutations
-		samps = 1:n_gs
-		set1 = Set(recom)
-		mutates = [x for x in samps if x ∉ set1]
-		mutated = []
-
-		shuf = mutates
-		set2 = mutated
-		shuf = [x for x in shuf if x ∉ set2]
-		println("iteration $i")
-		for y in 1:length(shuf)
-			push!(temp_genomes, genomes[shuf[y]][shuffle(1:end), :])
-		end
-
-		needed = n_gs - length(temp_genomes)
-		tem = dists
-		sort!(tem)
-		for g in 1:needed
-			distance = tem[g]
-			index = findall(x->x==distance, dists)[1]
-			push!(temp_genomes, genomes[index])
-		end
-
-		for w in 1:n_gs
-			probm = rand()
-			if probm <= mutate_prob
+		for k in temp_genomes
+			if rand() < 0.2
 				r1 = rand(1:1000)
 				r2 = rand(1:1000)
-				temp_row = deepcopy(temp_genomes[w][r1, :])
-				temp_genomes[w][r2, :] = temp_genomes[w][r2, :]
-				temp_genomes[w][r1, :] = temp_row
+				temp_row = deepcopy(k[r1, :])
+				k[r2, :] = k[r2, :]
+				k[r1, :] = temp_row
 			end
+		end
+
+		#Adding 4 new genomes to population
+		println("iteration $i")
+		for y in 1:4
+			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
 
 		genomes = temp_genomes
 		for z in 1:n_gs
 			genomes[z] = get_dist(genomes[z])
-			push!(temp_dists, 1)
-			temp_dists[z] = sum(genomes[z].dist_to_next)
+			push!(temp_dists, sum(genomes[z].dist_to_next))
 		end
 		dists = temp_dists
 		mind = minimum(dists)
@@ -142,7 +124,7 @@ function tsp_ga()
 	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
 
 	push!(short_dists, short_dists[end])
-	push!(short_iters, n_gs + 1)
+	push!(short_iters, 100000 + 1)
 	frs = shortest_df[end][1, :]::DataFrameRow{DataFrame,DataFrames.Index}
 	push!(shortest_df[end], frs)
 
