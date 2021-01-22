@@ -2,6 +2,7 @@ using CSV
 using DataFrames
 using Random
 using Plots
+using StatsBase
 
 #Revised Julia version of my GA, written to be effective and efficient.
 
@@ -16,56 +17,48 @@ function get_dist(df)
 end
 
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
-	iters = 100000
-	mutate_prob = 0.75
+	iters = 100
+	mutate_prob = 0.2
 	for i in 1:iters
 		temp_genomes = []
 	    temp_dists = []
-		total_fit = sum(dists)
-
+		recips = 1 ./ dists
+		normed = [x / sum(recips) for x in recips]
+		parents = []
 		#Figuring out which genomes will reproduce
-		recom = []
+		#What if I have a set number of reproduced genomes every gen
+		#Parents for each one will be chosen from fitness proportion
+		#Parents will produce 2 children
 
-		for j in 1:n_gs
-			prob = dists[j] / total_fit
-
-			if prob >= 1
-				push!(recom, j)
-			else
-				num = rand()
-				if num <= mutate_prob
-					push!(recom, j)
-				end
-			end
+		for j in 1:23
+			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
 		#Recombination
-		lengt = 400
-		recombines = length(recom)
+		#probability of crossover is 0.7
+		#If this doesn't work, consider crossing over at randomly chosen point
+		#Also use random length of part1 in child
+		for p in parents
+			if rand() < 0.7
+				child1 = p[1][1:500, :]
+				child2 = p[2][1:500, :]
 
-		for p in 1:recombines
-			par1 = genomes[p]
-			rando = rand(1:recombines)
-			if rando == p
-				random = rand(1:recombines)
+				c1_id = child1[:, "ID"]
+				c2_id = child2[:, "ID"]
+
+				secta = p[2][isnothing.(indexin(p[2].ID, c1_id)), :]
+				sectb = p[1][isnothing.(indexin(p[1].ID, c2_id)), :]
+				vcat!(child1, secta)
+				vcat!(child2, sectb)
+				push!(temp_genomes, child1)
+				push!(temp_genomes, child2)
+			else
+				push!(temp_genomes, p[1])
+				push!(temp_genomes, p[2])
 			end
-			par2 = genomes[rando]
-
-			start = rand(1:600)
-			endl = start + lengt
-			child = par1[start:endl-1, :]
-
-			par1_id = par1[start:endl - 1, "ID"]
-
-			sect = par2[isnothing.(indexin(par2.ID, par1_id)), :]
-			sect1 = sect[1:start, :]
-			sect2 = sect[(endl - lengt + 1):600, :]
-			sect3 = vcat(sect1, child)
-			sect3 = vcat(sect3, sect2)
-			#println(size(sect3))
-			push!(temp_genomes, sect3)
 		end
 
+		#Mutations
 		samps = 1:n_gs
 		set1 = Set(recom)
 		mutates = [x for x in samps if x ∉ set1]
