@@ -16,8 +16,8 @@ function get_dist(df)
     return df
 end
 
-function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
-	iters = 100000
+function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
+	iters = 50000
 	mutate_prob = 0.2
 	for i in 1:iters
 		temp_genomes = []
@@ -36,12 +36,25 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
 
 		#Recombination
 		#probability of crossover is 0.7
-		#If this doesn't work, consider crossing over at randomly chosen point
-		#Also use random length of part1 in child
+		#If this doesn't work, consider lowering range of crossover to 400-600
+		#maybe make 4 children instead of 2?
+		#increase mutation rate?
+		#super inefficient - start with p1, compare between p1 and p2 which path 
+		#is shorter, then add to new child
+		#example - 142935687, 261349578
+		#See if 4 or 9 (or maybe 7 or 6 too) is shorter, let's say 4 is shorter
+		#Now new child is 14-------
+		#See if 2 or 9 is shorter, repeat
+		#A less intensive and more random way is to just always alternate
+		#between choosing P1 and P2 to create new child, creating 2 children
+		#Could maybe save time and just hack off a 400 length piece of one parent
+		#(maybe choose depending on which length is shorter), then continue
 		for p in parents
 			if rand() < 0.7
-				child1 = p[1][1:500, :]
-				child2 = p[2][1:500, :]
+				c_len = rand(1:800)
+				c_point = rand(1:1000 - c_len)
+				child1 = p[1][c_point:c_point + c_len - 1, :]
+				child2 = p[2][c_point:c_point + c_len - 1, :]
 
 				c1_id = child1[:, "ID"]
 				c2_id = child2[:, "ID"]
@@ -83,7 +96,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
 		dists = temp_dists
 		mind = minimum(dists)
 		mindi = argmin(dists)
-
+		push!(avg_fit, mean(dists))
 		if mind < short_dists[end]
 			push!(short_dists, mind)
 			push!(short_iters, i+2)
@@ -92,7 +105,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
 		end
 
 	end
-	return short_dists, short_iters, shortest_df
+	return short_dists, short_iters, shortest_df, avg_fit
 end
 
 function tsp_ga()
@@ -119,12 +132,13 @@ function tsp_ga()
 	push!(short_iters, 1)
 	shortest_df = []
 	push!(shortest_df, new_df)
+	avg_fit = []
+	push!(avg_fit, mean(dists))
 
-
-	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs)
+	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
 
 	push!(short_dists, short_dists[end])
-	push!(short_iters, 100000 + 1)
+	push!(short_iters, 50000 + 1)
 	frs = shortest_df[end][1, :]::DataFrameRow{DataFrame,DataFrames.Index}
 	push!(shortest_df[end], frs)
 
@@ -135,7 +149,8 @@ function tsp_ga()
 	CSV.write("C://Users//ahhua//Documents//jl_ga_shortest.csv", shortest_df)
 	ga_short_csv = DataFrame(short_iters = short_iters, short_dists = short_dists)
 	CSV.write("C://Users//ahhua//Documents//jl_ga_short_csv.csv", ga_short_csv)
-
+	ga_avgs = DataFrame(generation = 1:50001, avg_fitness = avg_fit)
+	CSV.write("C://Users//ahhua//Documents//jl_avg_fitness.csv", ga_avgs)
 	gr()
 	plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
 	xlabel!("iterations")
