@@ -36,7 +36,6 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 
 		#Recombination
 		#probability of crossover is 0.7
-		#If this doesn't work, consider lowering range of crossover to 400-600
 		#maybe make 4 children instead of 2?
 		#increase mutation rate?
 		#super inefficient - start with p1, compare between p1 and p2 which path 
@@ -49,10 +48,12 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		#between choosing P1 and P2 to create new child, creating 2 children
 		#Could maybe save time and just hack off a 400 length piece of one parent
 		#(maybe choose depending on which length is shorter), then continue
+		#"Koza" GP approach - keep 10% of population, crossover, no mutation,
+		#have high starting population
 		for p in parents
 			if rand() < 0.7
-				c_len = rand(1:800)
-				c_point = rand(1:1000 - c_len)
+				c_len = 400
+				c_point = 300
 				child1 = p[1][c_point:c_point + c_len - 1, :]
 				child2 = p[2][c_point:c_point + c_len - 1, :]
 
