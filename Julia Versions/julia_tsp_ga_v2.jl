@@ -17,7 +17,7 @@ function get_dist(df)
 end
 
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
-	iters = 50000
+	iters = 1000
 	mutate_prob = 0.2
 	for i in 1:iters
 		temp_genomes = []
@@ -26,19 +26,22 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		normed = [x / sum(recips) for x in recips]
 		parents = []
 
+		temp2 = deepcopy(dists)
+		#Elite children
+		for e in 1:10
+			ec = argmin(temp2)
+			push!(temp_genomes, genomes[ec])
+			deleteat!(temp2, ec)
+		end
+
 		#Figuring out which genomes will reproduce
-		#What if I have a set number of reproduced genomes every gen
 		#Parents for each one will be chosen from fitness proportion
 		#Parents will produce 2 children
-
-		for j in 1:96
+		for j in 1:43
 			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
 		#Recombination
-		#probability of crossover is 0.7
-		#maybe make 4 children instead of 2?
-		#increase mutation rate?
 		#super inefficient - start with p1, compare between p1 and p2 which path 
 		#is shorter, then add to new child
 		#example - 142935687, 261349578
@@ -51,9 +54,9 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		#(maybe choose depending on which length is shorter), then continue
 		#Using ordered crossover
 		for p in parents
-			if rand() < 0.8
-				c_len = 400 
-				c_point = rand(200:500)
+			if rand() < 2
+				c_len = 300
+				c_point = rand(100:600)
 				child1 = p[1][c_point:c_point + c_len - 1, :]
 				child2 = p[2][c_point:c_point + c_len - 1, :]
 
@@ -80,17 +83,20 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		
 		#Mutations
 		for k in temp_genomes
-			if rand() < 0.1
+			if rand() < 0.25
 				r1 = rand(1:1000)
 				r2 = rand(1:1000)
+				while r2 == r1
+					r2 = rand(1:1000)
+				end
 				temp_row = deepcopy(k[r1, :])
 				k[r2, :] = k[r2, :]
 				k[r1, :] = temp_row
 			end
 		end
-
-		#Adding new genomes to population - 4% of population will be new
-		for y in 1:8
+		
+		#Adding new genomes to population - 2-4% of population will be new
+		for y in 1:4
 			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
 		
@@ -117,13 +123,12 @@ end
 
 function tsp_ga()
 	df = CSV.read("C://Users//ahhua//Downloads//tsp.txt", DataFrame)
-
 	df.ID = 1:1000
 	df.dist_to_next = zeros(1000)
 
 	genomes = []
 	dists = []
-	n_gs = 200
+	n_gs = 100
 	for i in 1:n_gs
 		new_df = df[shuffle(1:end), :]
 		new_df = get_dist(new_df)
@@ -145,7 +150,7 @@ function tsp_ga()
 	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
 
 	push!(short_dists, short_dists[end])
-	push!(short_iters, 50000 + 1)
+	push!(short_iters, 1000 + 1)
 	frs = shortest_df[end][1, :]::DataFrameRow{DataFrame,DataFrames.Index}
 	push!(shortest_df[end], frs)
 
@@ -156,12 +161,13 @@ function tsp_ga()
 	CSV.write("C://Users//ahhua//Documents//jl_ga_shortest.csv", shortest_df)
 	ga_short_csv = DataFrame(short_iters = short_iters, short_dists = short_dists)
 	CSV.write("C://Users//ahhua//Documents//jl_ga_short_csv.csv", ga_short_csv)
-	ga_avgs = DataFrame(generation = 1:50001, avg_fitness = avg_fit)
+	ga_avgs = DataFrame(generation = 1:1001, avg_fitness = avg_fit)
 	CSV.write("C://Users//ahhua//Documents//jl_avg_fitness.csv", ga_avgs)
 	gr()
-	plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
+	evo = plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
 	xlabel!("iterations")
 	ylabel!("distance")
 	title!("genetic algorithm")
+	display(evo)
 	return "Completed algorithm"::String
 end
