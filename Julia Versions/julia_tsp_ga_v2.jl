@@ -26,16 +26,12 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		normed = [x / sum(recips) for x in recips]
 		parents = []
 
-		#First, preserve 10% of population - 100 genomes in this case
-		for j in 1:100
-			push!(temp_genomes, sample(genomes, Weights(normed)))
-		end
 		#Figuring out which genomes will reproduce
 		#What if I have a set number of reproduced genomes every gen
 		#Parents for each one will be chosen from fitness proportion
 		#Parents will produce 2 children
 
-		for j in 1:450
+		for j in 1:96
 			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
@@ -53,22 +49,27 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		#between choosing P1 and P2 to create new child, creating 2 children
 		#Could maybe save time and just hack off a 400 length piece of one parent
 		#(maybe choose depending on which length is shorter), then continue
-		#"Koza" GP approach - keep 10% of population, crossover, no mutation,
-		#have high starting population
+		#Using ordered crossover
 		for p in parents
-			if rand() < 0.7
-				c_len = 400
-				c_point = 300
+			if rand() < 0.8
+				c_len = 400 
+				c_point = rand(200:500)
 				child1 = p[1][c_point:c_point + c_len - 1, :]
 				child2 = p[2][c_point:c_point + c_len - 1, :]
 
 				c1_id = child1[:, "ID"]
 				c2_id = child2[:, "ID"]
+				p1p1 = p[1][1:c_point + c_len - 1, :]
+				p1p2 = p[1][c_point + c_len:end, :]
+				p2p1 = p[2][1:c_point + c_len - 1, :]
+				p2p2 = p[2][c_point + c_len:end, :]
 
-				secta = p[2][isnothing.(indexin(p[2].ID, c1_id)), :]
-				sectb = p[1][isnothing.(indexin(p[1].ID, c2_id)), :]
-				child1 = vcat(child1, secta)
-				child2 = vcat(child2, sectb)
+				sect_c1a = p2p1[isnothing.(indexin(p2p1.ID, c1_id)), :]
+				sect_c1b = p2p2[isnothing.(indexin(p2p2.ID, c1_id)), :]
+				sect_c2a = p1p1[isnothing.(indexin(p1p1.ID, c2_id)), :]
+				sect_c2b = p1p2[isnothing.(indexin(p1p2.ID, c2_id)), :]
+				child1 = vcat(sect_c1a, child1, sect_c1b)
+				child2 = vcat(sect_c2a, child2, sect_c2b)
 				push!(temp_genomes, child1)
 				push!(temp_genomes, child2)
 			else
@@ -76,10 +77,10 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 				push!(temp_genomes, p[2])
 			end
 		end
-		#=
+		
 		#Mutations
 		for k in temp_genomes
-			if rand() < 0.2
+			if rand() < 0.1
 				r1 = rand(1:1000)
 				r2 = rand(1:1000)
 				temp_row = deepcopy(k[r1, :])
@@ -88,11 +89,11 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 			end
 		end
 
-		#Adding 4 new genomes to population
-		for y in 1:4
+		#Adding new genomes to population - 4% of population will be new
+		for y in 1:8
 			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
-		=#
+		
 		println("iteration $i")
 		genomes = temp_genomes
 		for z in 1:n_gs
@@ -122,7 +123,7 @@ function tsp_ga()
 
 	genomes = []
 	dists = []
-	n_gs = 1000
+	n_gs = 200
 	for i in 1:n_gs
 		new_df = df[shuffle(1:end), :]
 		new_df = get_dist(new_df)
