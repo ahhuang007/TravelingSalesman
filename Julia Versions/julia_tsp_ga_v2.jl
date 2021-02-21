@@ -6,7 +6,7 @@ using StatsBase
 
 #Revised Julia version of my GA, written to be effective and efficient.
 
-function get_dist(df)
+function get_dist(df::DataFrame)
 	tempdf = df
 	first_row = tempdf[1, :]
     tempdf = tempdf[2:1000, :]
@@ -16,9 +16,46 @@ function get_dist(df)
     return df
 end
 
+function get_elites(dists, temp_genomes, genomes)
+	for e in 1:convert(Int64, length(genomes)/10)
+		ec = argmin(dists)
+		push!(temp_genomes, genomes[ec])
+		deleteat!(dists, ec)
+	end
+	return temp_genomes
+end
+
+function crossover(parents, temp_genomes, c_len::Int64)
+	for p in parents
+		
+		c_point = rand(100:600)
+		child1 = p[1][c_point:c_point + c_len - 1, :]::DataFrame
+		child2 = p[2][c_point:c_point + c_len - 1, :]::DataFrame
+
+		c1_id = child1.ID
+		c2_id = child2.ID
+		p1p1 = p[1][1:c_point + c_len - 1, :]::DataFrame
+		p1p2 = p[1][c_point + c_len:end, :]
+		p2p1 = p[2][1:c_point + c_len - 1, :]::DataFrame
+		p2p2 = p[2][c_point + c_len:end, :]
+		#println(typeof(isnothing.(indexin(p2p1.ID, c1_id))))
+		sect_c1a = p2p1[isnothing.(indexin(p2p1.ID, c1_id)), :]::DataFrame
+		sect_c1b = p2p2[isnothing.(indexin(p2p2.ID, c1_id)), :]::DataFrame
+		sect_c2a = p1p1[isnothing.(indexin(p1p1.ID, c2_id)), :]::DataFrame
+		sect_c2b = p1p2[isnothing.(indexin(p1p2.ID, c2_id)), :]::DataFrame
+		child1 = vcat(sect_c1a, child1, sect_c1b)::DataFrame
+		child2 = vcat(sect_c2a, child2, sect_c2b)::DataFrame
+		push!(temp_genomes, child1)
+		push!(temp_genomes, child2)
+		
+		#push!(temp_genomes, p[1])
+		#push!(temp_genomes, p[2])
+	end
+	return temp_genomes
+end
+
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
-	iters = 1000
-	mutate_prob = 0.2
+	iters = 200
 	for i in 1:iters
 		temp_genomes = []
 	    temp_dists = []
@@ -26,13 +63,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		normed = [x / sum(recips) for x in recips]
 		parents = []
 
-		temp2 = deepcopy(dists)
-		#Elite children
-		for e in 1:10
-			ec = argmin(temp2)
-			push!(temp_genomes, genomes[ec])
-			deleteat!(temp2, ec)
-		end
+		temp_genomes = get_elites(dists, temp_genomes, genomes)
 
 		#Figuring out which genomes will reproduce
 		#Parents for each one will be chosen from fitness proportion
@@ -42,55 +73,19 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		end
 
 		#Recombination
-		#super inefficient - start with p1, compare between p1 and p2 which path 
-		#is shorter, then add to new child
-		#example - 142935687, 261349578
-		#See if 4 or 9 (or maybe 7 or 6 too) is shorter, let's say 4 is shorter
-		#Now new child is 14-------
-		#See if 2 or 9 is shorter, repeat
-		#A less intensive and more random way is to just always alternate
-		#between choosing P1 and P2 to create new child, creating 2 children
-		#Could maybe save time and just hack off a 400 length piece of one parent
-		#(maybe choose depending on which length is shorter), then continue
 		#Using ordered crossover
-		for p in parents
-			if rand() < 2
-				c_len = 300
-				c_point = rand(100:600)
-				child1 = p[1][c_point:c_point + c_len - 1, :]
-				child2 = p[2][c_point:c_point + c_len - 1, :]
-
-				c1_id = child1[:, "ID"]
-				c2_id = child2[:, "ID"]
-				p1p1 = p[1][1:c_point + c_len - 1, :]
-				p1p2 = p[1][c_point + c_len:end, :]
-				p2p1 = p[2][1:c_point + c_len - 1, :]
-				p2p2 = p[2][c_point + c_len:end, :]
-
-				sect_c1a = p2p1[isnothing.(indexin(p2p1.ID, c1_id)), :]
-				sect_c1b = p2p2[isnothing.(indexin(p2p2.ID, c1_id)), :]
-				sect_c2a = p1p1[isnothing.(indexin(p1p1.ID, c2_id)), :]
-				sect_c2b = p1p2[isnothing.(indexin(p1p2.ID, c2_id)), :]
-				child1 = vcat(sect_c1a, child1, sect_c1b)
-				child2 = vcat(sect_c2a, child2, sect_c2b)
-				push!(temp_genomes, child1)
-				push!(temp_genomes, child2)
-			else
-				push!(temp_genomes, p[1])
-				push!(temp_genomes, p[2])
-			end
-		end
+		temp_genomes = crossover(parents, temp_genomes, 8)
 		
 		#Mutations
 		for k in temp_genomes
-			if rand() < 0.25
+			if rand() < 0.01
 				r1 = rand(1:1000)
 				r2 = rand(1:1000)
 				while r2 == r1
 					r2 = rand(1:1000)
 				end
-				temp_row = deepcopy(k[r1, :])
-				k[r2, :] = k[r2, :]
+				temp_row = deepcopy(k[r2, :])
+				k[r2, :] = k[r1, :]
 				k[r1, :] = temp_row
 			end
 		end
@@ -123,6 +118,9 @@ end
 
 function tsp_ga()
 	df = CSV.read("C://Users//ahhua//Downloads//tsp.txt", DataFrame)
+	#df = DataFrame()
+	#df.x = fill(0.0, 1000)
+	#df.y = shuffle(1.0:1000.0)
 	df.ID = 1:1000
 	df.dist_to_next = zeros(1000)
 
@@ -150,7 +148,7 @@ function tsp_ga()
 	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
 
 	push!(short_dists, short_dists[end])
-	push!(short_iters, 1000 + 1)
+	push!(short_iters, 200 + 1)
 	frs = shortest_df[end][1, :]::DataFrameRow{DataFrame,DataFrames.Index}
 	push!(shortest_df[end], frs)
 
@@ -161,7 +159,7 @@ function tsp_ga()
 	CSV.write("C://Users//ahhua//Documents//jl_ga_shortest.csv", shortest_df)
 	ga_short_csv = DataFrame(short_iters = short_iters, short_dists = short_dists)
 	CSV.write("C://Users//ahhua//Documents//jl_ga_short_csv.csv", ga_short_csv)
-	ga_avgs = DataFrame(generation = 1:1001, avg_fitness = avg_fit)
+	ga_avgs = DataFrame(generation = 1:201, avg_fitness = avg_fit)
 	CSV.write("C://Users//ahhua//Documents//jl_avg_fitness.csv", ga_avgs)
 	gr()
 	evo = plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
