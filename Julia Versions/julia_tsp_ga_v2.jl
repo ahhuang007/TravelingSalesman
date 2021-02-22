@@ -48,14 +48,28 @@ function crossover(parents, temp_genomes, c_len::Int64)
 		push!(temp_genomes, child1)
 		push!(temp_genomes, child2)
 		
-		#push!(temp_genomes, p[1])
-		#push!(temp_genomes, p[2])
+	end
+	return temp_genomes
+end
+
+function mutate(temp_genomes)
+	for k in temp_genomes
+		if rand() < 0.01
+			r1 = rand(1:1000)
+			r2 = rand(1:1000)
+			while r2 == r1
+				r2 = rand(1:1000)
+			end
+			temp_row = deepcopy(k[r2, :])
+			k[r2, :] = k[r1, :]
+			k[r1, :] = temp_row
+		end
 	end
 	return temp_genomes
 end
 
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
-	iters = 200
+	iters = 10000
 	for i in 1:iters
 		temp_genomes = []
 	    temp_dists = []
@@ -77,18 +91,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		temp_genomes = crossover(parents, temp_genomes, 8)
 		
 		#Mutations
-		for k in temp_genomes
-			if rand() < 0.01
-				r1 = rand(1:1000)
-				r2 = rand(1:1000)
-				while r2 == r1
-					r2 = rand(1:1000)
-				end
-				temp_row = deepcopy(k[r2, :])
-				k[r2, :] = k[r1, :]
-				k[r1, :] = temp_row
-			end
-		end
+		temp_genomes = mutate(temp_genomes)
 		
 		#Adding new genomes to population - 2-4% of population will be new
 		for y in 1:4
@@ -96,11 +99,14 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		end
 		
 		println("iteration $i")
+
 		genomes = temp_genomes
+
 		for z in 1:n_gs
 			genomes[z] = get_dist(genomes[z])
 			push!(temp_dists, sum(genomes[z].dist_to_next))
 		end
+		
 		dists = temp_dists
 		mind = minimum(dists)
 		mindi = argmin(dists)
@@ -148,7 +154,7 @@ function tsp_ga()
 	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
 
 	push!(short_dists, short_dists[end])
-	push!(short_iters, 200 + 1)
+	push!(short_iters, 10000 + 1)
 	frs = shortest_df[end][1, :]::DataFrameRow{DataFrame,DataFrames.Index}
 	push!(shortest_df[end], frs)
 
@@ -159,7 +165,7 @@ function tsp_ga()
 	CSV.write("C://Users//ahhua//Documents//jl_ga_shortest.csv", shortest_df)
 	ga_short_csv = DataFrame(short_iters = short_iters, short_dists = short_dists)
 	CSV.write("C://Users//ahhua//Documents//jl_ga_short_csv.csv", ga_short_csv)
-	ga_avgs = DataFrame(generation = 1:201, avg_fitness = avg_fit)
+	ga_avgs = DataFrame(generation = 1:10001, avg_fitness = avg_fit)
 	CSV.write("C://Users//ahhua//Documents//jl_avg_fitness.csv", ga_avgs)
 	gr()
 	evo = plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
