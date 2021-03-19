@@ -28,7 +28,7 @@ end
 function crossover(parents, temp_genomes, c_len::Int64)
 	for p in parents
 		
-		c_point = rand(5:30)
+		c_point = rand(1:98)
 		child1 = p[1][c_point:c_point + c_len - 1, :]::DataFrame
 		child2 = p[2][c_point:c_point + c_len - 1, :]::DataFrame
 
@@ -126,10 +126,10 @@ end
 function tsp_ga()
 	#df = CSV.read("C://Users//ahhua//Downloads//tsp.txt", DataFrame)
 	df = DataFrame()
-	df.x = fill(0.0, 50)
-	df.y = shuffle(1.0:50.0)
-	df.ID = 1:50
-	df.dist_to_next = zeros(50)
+	df.x = fill(0.0, 100)
+	df.y = shuffle(1.0:100.0)
+	df.ID = 1:100
+	df.dist_to_next = zeros(100)
 
 	genomes = []
 	dists = []
