@@ -28,7 +28,7 @@ end
 function crossover(parents, temp_genomes, c_len::Int64)
 	for p in parents
 		
-		c_point = rand(1:98)
+		c_point = rand(1:92)
 		child1 = p[1][c_point:c_point + c_len - 1, :]::DataFrame
 		child2 = p[2][c_point:c_point + c_len - 1, :]::DataFrame
 
@@ -45,8 +45,37 @@ function crossover(parents, temp_genomes, c_len::Int64)
 		sect_c2b = p1p2[isnothing.(indexin(p1p2.ID, c2_id)), :]::DataFrame
 		child1 = vcat(sect_c1a, child1, sect_c1b)::DataFrame
 		child2 = vcat(sect_c2a, child2, sect_c2b)::DataFrame
-		push!(temp_genomes, child1)
-		push!(temp_genomes, child2)
+
+		#Crowding method
+		p1d = sum(get_dist(p[1]).dist_to_next)
+		p2d = sum(get_dist(p[2]).dist_to_next)
+		c1d = sum(get_dist(child1).dist_to_next)
+		c2d = sum(get_dist(child2).dist_to_next)
+		if abs(p1d - c1d) + abs(p2d - c2d) < abs(p1d - c2d) + abs(p2d - c1d)
+			if p1d < c1d
+				push!(temp_genomes, p[1])
+			else
+				push!(temp_genomes, child1)
+			end
+			if p2d < c2d
+				push!(temp_genomes, p[2])
+			else
+				push!(temp_genomes, child2)
+			end
+		else
+			if p1d < c2d
+				push!(temp_genomes, p[1])
+			else
+				push!(temp_genomes, child2)
+			end
+			if p2d < c1d
+				push!(temp_genomes, p[2])
+			else
+				push!(temp_genomes, child1)
+			end
+		end
+		#push!(temp_genomes, child1)
+		#push!(temp_genomes, child2)
 		
 	end
 	return temp_genomes
@@ -77,25 +106,25 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		recips = 1 ./ dists
 		normed = [x / sum(recips) for x in recips]
 		parents = []
-
+		
 		temp_genomes = get_elites(dists, temp_genomes, genomes)
 
 		#Figuring out which genomes will reproduce
 		#Parents for each one will be chosen from fitness proportion
 		#Parents will produce 2 children
-		for j in 1:43*5
+		for j in 1:43*1
 			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
 		#Recombination
 		#Using ordered crossover
-		temp_genomes = crossover(parents, temp_genomes, 2)
+		temp_genomes = crossover(parents, temp_genomes, 8)
 		
 		#Mutations
 		temp_genomes = mutate(temp_genomes)
 		
 		#Adding new genomes to population - 2-4% of population will be new
-		for y in 1:4*5
+		for y in 1:4*1
 			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
 		
@@ -133,7 +162,7 @@ function tsp_ga()
 
 	genomes = []
 	dists = []
-	n_gs = 500
+	n_gs = 100
 	for i in 1:n_gs
 		new_df = df[shuffle(1:end), :]
 		new_df = get_dist(new_df)
