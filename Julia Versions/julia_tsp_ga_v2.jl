@@ -3,8 +3,24 @@ using DataFrames
 using Random
 using Plots
 using StatsBase
+using Distances
 
-#Revised Julia version of my GA, written to be effective and efficient.
+#Revised Julia version of my GA, written to be effective. Hopefully efficiency will come later.
+
+function shared_fitness(solution, min_dist, share_param, genomes, dist)
+	denom = 1
+
+	for i in genomes
+		hd = hamming(solution.ID, i.ID)
+
+		if hd < min_dist
+			denom += (1 - (hd/share_param))
+		end
+
+	end
+
+	return dist/denom
+end
 
 function get_dist(df::DataFrame)
 	tempdf = df
@@ -99,20 +115,26 @@ function mutate(temp_genomes)
 end
 
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
-	iters = 3000
+	iters = 5000
 	for i in 1:iters
+
+		#Calculating shared fitness values
+		shared_fits = []
+		for v in 1:length(genomes)
+			push!(shared_fits, shared_fitness(genomes[v], 25, 50, genomes, dists[v]))
+		end
 		temp_genomes = []
 	    temp_dists = []
-		recips = 1 ./ dists
+		#recips = 1 ./ dists
+		recips = 1 ./ shared_fits
 		normed = [x / sum(recips) for x in recips]
 		parents = []
-		
-		temp_genomes = get_elites(dists, temp_genomes, genomes)
+		temp_genomes = get_elites(shared_fits, temp_genomes, genomes)
 
 		#Figuring out which genomes will reproduce
 		#Parents for each one will be chosen from fitness proportion
 		#Parents will produce 2 children
-		for j in 1:43*1
+		for j in 1:43*3
 			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
@@ -124,7 +146,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		temp_genomes = mutate(temp_genomes)
 		
 		#Adding new genomes to population - 2-4% of population will be new
-		for y in 1:4*1
+		for y in 1:4*3
 			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
 		
@@ -162,7 +184,8 @@ function tsp_ga()
 
 	genomes = []
 	dists = []
-	n_gs = 100
+	n_gs = 300
+	iterations = 5000
 	for i in 1:n_gs
 		new_df = df[shuffle(1:end), :]
 		new_df = get_dist(new_df)
@@ -184,7 +207,7 @@ function tsp_ga()
 	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
 
 	push!(short_dists, short_dists[end])
-	push!(short_iters, 3000 + 1)
+	push!(short_iters, iterations + 1)
 	frs = shortest_df[end][1, :]::DataFrameRow{DataFrame,DataFrames.Index}
 	push!(shortest_df[end], frs)
 
@@ -195,7 +218,7 @@ function tsp_ga()
 	CSV.write("C://Users//ahhua//Documents//jl_ga_shortest.csv", shortest_df)
 	ga_short_csv = DataFrame(short_iters = short_iters, short_dists = short_dists)
 	CSV.write("C://Users//ahhua//Documents//jl_ga_short_csv.csv", ga_short_csv)
-	ga_avgs = DataFrame(generation = 1:3001, avg_fitness = avg_fit)
+	ga_avgs = DataFrame(generation = 1:iterations + 1, avg_fitness = avg_fit)
 	CSV.write("C://Users//ahhua//Documents//jl_avg_fitness.csv", ga_avgs)
 	gr()
 	evo = plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
