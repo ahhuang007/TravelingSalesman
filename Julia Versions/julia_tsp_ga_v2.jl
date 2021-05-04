@@ -44,7 +44,7 @@ end
 function crossover(parents, temp_genomes, c_len::Int64)
 	for p in parents
 		
-		c_point = rand(1:92)
+		c_point = rand(1:184)
 		child1 = p[1][c_point:c_point + c_len - 1, :]::DataFrame
 		child2 = p[2][c_point:c_point + c_len - 1, :]::DataFrame
 
@@ -115,38 +115,41 @@ function mutate(temp_genomes)
 end
 
 function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
-	iters = 5000
-	for i in 1:iters
-
+	iters = 3000
+	counter = 0
+	mind = Inf
+	#for i in 1:iters
+	i = 1
+	while counter < 1000 && mind > 400
 		#Calculating shared fitness values
-		shared_fits = []
-		for v in 1:length(genomes)
-			push!(shared_fits, shared_fitness(genomes[v], 25, 50, genomes, dists[v]))
-		end
+		#shared_fits = []
+		#for v in 1:length(genomes)
+		#	push!(shared_fits, shared_fitness(genomes[v], 25, 40, genomes, dists[v]))
+		#end
 		temp_genomes = []
 	    temp_dists = []
-		#recips = 1 ./ dists
-		recips = 1 ./ shared_fits
+		recips = 1 ./ dists
+		#recips = 1 ./ shared_fits
 		normed = [x / sum(recips) for x in recips]
 		parents = []
-		temp_genomes = get_elites(shared_fits, temp_genomes, genomes)
-
+		#temp_genomes = get_elites(shared_fits, temp_genomes, genomes)
+		temp_genomes = get_elites(dists, temp_genomes, genomes)
 		#Figuring out which genomes will reproduce
 		#Parents for each one will be chosen from fitness proportion
 		#Parents will produce 2 children
-		for j in 1:43*3
+		for j in 1:43*5
 			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
 		#Recombination
 		#Using ordered crossover
-		temp_genomes = crossover(parents, temp_genomes, 8)
+		temp_genomes = crossover(parents, temp_genomes, 16)
 		
 		#Mutations
 		temp_genomes = mutate(temp_genomes)
 		
 		#Adding new genomes to population - 2-4% of population will be new
-		for y in 1:4*3
+		for y in 1:4*5
 			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
 		
@@ -167,25 +170,28 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 			push!(short_dists, mind)
 			push!(short_iters, i+2)
 			push!(shortest_df, genomes[mindi])
-			println("new shortest distance acquired at iteration $i")
+			println("new shortest distance acquired at iteration $i: $mind")
+			counter = 0
+		else
+			counter += 1
 		end
-		
+		i += 1
 	end
-	return short_dists, short_iters, shortest_df, avg_fit
+	return short_dists, short_iters, shortest_df, avg_fit, i
 end
 
 function tsp_ga()
 	#df = CSV.read("C://Users//ahhua//Downloads//tsp.txt", DataFrame)
 	df = DataFrame()
-	df.x = fill(0.0, 100)
-	df.y = shuffle(1.0:100.0)
-	df.ID = 1:100
-	df.dist_to_next = zeros(100)
+	df.x = fill(0.0, 200)
+	df.y = shuffle(1.0:200.0)
+	df.ID = 1:200
+	df.dist_to_next = zeros(200)
 
 	genomes = []
 	dists = []
-	n_gs = 300
-	iterations = 5000
+	n_gs = 500
+	iterations = 3000
 	for i in 1:n_gs
 		new_df = df[shuffle(1:end), :]
 		new_df = get_dist(new_df)
@@ -204,7 +210,7 @@ function tsp_ga()
 	avg_fit = []
 	push!(avg_fit, mean(dists))
 
-	short_dists, short_iters, shortest_df = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
+	short_dists, short_iters, shortest_df, avg_fit, iterations = ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, avg_fit)
 
 	push!(short_dists, short_dists[end])
 	push!(short_iters, iterations + 1)
@@ -218,7 +224,7 @@ function tsp_ga()
 	CSV.write("C://Users//ahhua//Documents//jl_ga_shortest.csv", shortest_df)
 	ga_short_csv = DataFrame(short_iters = short_iters, short_dists = short_dists)
 	CSV.write("C://Users//ahhua//Documents//jl_ga_short_csv.csv", ga_short_csv)
-	ga_avgs = DataFrame(generation = 1:iterations + 1, avg_fitness = avg_fit)
+	ga_avgs = DataFrame(generation = 1:iterations, avg_fitness = avg_fit)
 	CSV.write("C://Users//ahhua//Documents//jl_avg_fitness.csv", ga_avgs)
 	gr()
 	evo = plot(short_iters, short_dists, linetype =:steppost, label = "shortest distance")
