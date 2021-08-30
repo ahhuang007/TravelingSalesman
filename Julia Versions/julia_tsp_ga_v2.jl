@@ -137,7 +137,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		#Figuring out which genomes will reproduce
 		#Parents for each one will be chosen from fitness proportion
 		#Parents will produce 2 children
-		for j in 1:43*5
+		for j in 1:43*10
 			push!(parents, sample(genomes, Weights(normed), 2, replace=false))
 		end
 
@@ -149,7 +149,7 @@ function ga_loop(genomes, dists, short_dists, short_iters, shortest_df, n_gs, av
 		temp_genomes = mutate(temp_genomes)
 		
 		#Adding new genomes to population - 2-4% of population will be new
-		for y in 1:4*5
+		for y in 1:4*10
 			push!(temp_genomes, genomes[1][shuffle(1:end), :])
 		end
 		
@@ -190,7 +190,7 @@ function tsp_ga()
 
 	genomes = []
 	dists = []
-	n_gs = 500
+	n_gs = 1000
 	iterations = 3000
 	for i in 1:n_gs
 		new_df = df[shuffle(1:end), :]
